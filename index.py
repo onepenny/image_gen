@@ -2,15 +2,32 @@ from PIL import Image, ImageDraw, ImageFont
 import sys
 import os
 from os import path
+import re
+import math
 
 config = {
     "style": {
-        "a": 1,
+        "full_width": 600,
+        "full_height": 1500,
+        "desc_padding_left": 28,
+        "desc_spacing": 6,
+        "c_radius": 196,
+        "c_children_radius": 55,
+        'c_and_children_border_color': 'green',
     }
 }
 
 curDir = path.dirname(path.abspath(__file__))
-[fullWidth, fullHeight] = (500, 1500)
+
+style = config['style']
+full_width = style['full_width']
+full_height = style['full_height']
+desc_padding_left = style['desc_padding_left']
+desc_spacing = style['desc_spacing']
+c_radius = style['c_radius']
+c_children_radius =style['c_children_radius']
+c_and_children_border_color = style['c_and_children_border_color']
+
 def partition(arr, n):
     ret = []
     sub_arr = []
@@ -28,72 +45,138 @@ def partition(arr, n):
 
 
 # 生成1个菜
-def genMenu(imageDir, menuName):
-    fullMenuDir = path.join(imageDir, menuName)
-    print('fullMenuDir', fullMenuDir)
-    toImg = Image.new('RGBA', (fullWidth, fullHeight))
-    for matFile in os.listdir(fullMenuDir):
-        [name, ext] = path.splitext(matFile)
-        print(name, ext)
+def gen_menu(image_dir, menu_name):
+    full_menu_dir = path.join(image_dir, menu_name)
+    print('fullMenuDir', full_menu_dir)
+    to_img = Image.new('RGBA', (full_width, full_height))
+    draw = ImageDraw.Draw(to_img)
 
-        #
-        draw = ImageDraw.Draw(toImg)
-
-        # 标题绘制
-        # font = ImageFont.truetype('Arial Bold Italic.ttf', 48)
-        # todo sr 换成: 思源宋体bold
-        fontTitle = ImageFont.truetype('SourceHanSerifCN-Bold', 48) # 不写.ttf后缀会自动搜索非.ttf字体
-
-        fillColorTitle = '#333'
-        [lineWidthTitle, lineHeightTitle] = draw.textsize(menuName, font=fontTitle)
-        print('[lineWidth, lineHeight]', [lineWidthTitle, lineHeightTitle])
-        # 注意坑, 这里的align只相对字体所占最大宽度定位居中, 不相对画布居中
-        draw.text( ((fullWidth - lineWidthTitle) / 2, (160 - lineHeightTitle) / 2), menuName, font=fontTitle, fill=fillColorTitle, align="center")
-
-        # 主菜绘制
+    # 遍历文件夹生成菜材料数据
+    mat_config = {'c_children_name_arr': []}
+    '''
+    mat_config demo
+   {
+   'c_children_name_arr': [
+     {'name': '朝天椒', 'sort': 0}, 
+     {'name': '胡萝卜', 'sort': 1}, 
+     {'name': '孜然', 'sort': 2}, 
+     {'name': '大排', 'sort': -1}
+   ], 
+   'desc': {'file': '/Users/a/projs/image_gen/images/孜香大排/desc.txt'}, 
+   'main': {'file': '/Users/a/projs/image_gen/images/孜香大排/main.jpg'},
+   'c': {'file': '/Users/a/projs/image_gen/images/孜香大排/c_大排.png'}, 
+   'c0': {'file': '/Users/a/projs/image_gen/images/孜香大排/c0_朝天椒.png'}, 
+   'c1': {'file': '/Users/a/projs/image_gen/images/孜香大排/c1_胡萝卜.png'}, 
+   'c2': {'file': '/Users/a/projs/image_gen/images/孜香大排/c2_孜然.png'}
+   
+   }
+    '''
+    for mat_file in os.listdir(full_menu_dir):
+        [name, ext] = path.splitext(mat_file)
+        abs_mat_file = path.join(full_menu_dir, mat_file)
         if name == 'main':
-            mainImg = Image.open(path.join(fullMenuDir, matFile))
-            mainImg.resize((600, 450), Image.ANTIALIAS)
-            toImg.paste(mainImg, (0, 160))
+            mat_config['main'] = {"file": abs_mat_file}
+        elif name == 'desc':
+            mat_config['desc'] = {"file": abs_mat_file}
+        elif str.startswith(name, 'c0_'):
+            mat_config['c0'] = {'file': abs_mat_file}
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c0_', '', name), "sort": 0})
+        elif str.startswith(name, 'c1_'):
+            mat_config['c1'] = {'file': abs_mat_file}
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c1_', '', name), "sort": 1})
+        elif str.startswith(name, 'c2_'):
+            mat_config['c2'] = {'file': abs_mat_file}
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c2_', '', name), "sort": 2})
+        elif str.startswith(name, 'c_'):
+            mat_config['c'] = {"file": abs_mat_file}
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c_', '', name), "sort": -1})
 
-        # 描述文案绘制
-        fontDesc = ImageFont.truetype('SourceHanSerifCN-Bold', 24)
-        fillColorDesc = '#333'
-
-        desc = ''
-        if name == 'desc':
-            with open(path.join(fullMenuDir, matFile), 'r') as descFile:
-                desc = descFile.read()
-
-            # 分行
-            [lineWidthDesc, lineHeightDesc] = draw.textsize(desc, font=fontDesc)
-            linesDesc = lineWidthDesc / (650 - 28 * 2 - 160) # 最后的减为调整: 未能领悟pillow是如何计算行宽
-            descArr = partition(desc, int(len(desc) / linesDesc))
-            descStrArr = map(lambda arr: ''.join(arr), descArr)
-            processedDescStr = '\n'.join(descStrArr)
-            draw.multiline_text((28, 650), processedDescStr, font=fontDesc, fill=fillColorDesc, align="left")
+    print('%s menu_mat_config %s' %(menu_name, mat_config))
 
 
-        # 绘制子菜
-        # draw.ellipse((350, 50, 400, 100), 'seagreen', 'skyblue')
+    # for mat_file in os.listdir(full_menu_dir):
+    #     [name, ext] = path.splitext(mat_file)
+    #     print(name, ext)
+
+    # 标题绘制, top_0-160_mid
+    font_title = ImageFont.truetype('SourceHanSerifCN-Bold', 48) # 不写.ttf后缀会自动搜索非.ttf字体
+    text_color_normal = '#333'
+    [line_width_title, line_height_title] = draw.textsize(menu_name, font=font_title)
+    # 注意坑, 这里的align只相对字体所占最大宽度定位居中, 不相对画布居中
+    draw.text(((full_width - line_width_title) / 2, (160 - line_height_title - 10) / 2), menu_name, font=font_title, fill=text_color_normal, align="center")
+
+    # 主菜绘制, top_160
+    main_img = Image.open(mat_config['main']['file'])
+    main_img.resize((full_width, 450), Image.ANTIALIAS)
+    to_img.paste(main_img, (0, 160))
+
+    # 描述文案绘制, top_650
+    font_desc = ImageFont.truetype('SourceHanSerifCN-Bold', 24)
+    fill_color_desc = '#333'
+    desc = ''
+    with open(mat_config['desc']['file'], 'r') as descFile:
+        desc = descFile.read()
+    # 分行
+    [line_width_desc, line_height_desc] = draw.textsize(desc, font=font_desc, spacing=desc_spacing)
+    print('[line_width_desc, line_height_desc]', [line_width_desc, line_height_desc])
+    lines_desc = line_width_desc / (full_width - desc_padding_left * 2 - 40) # 最后的减为调整: 未能领悟pillow是如何计算行宽
+    desc_arr = partition(desc, int(len(desc) / lines_desc))
+    desc_str_arr = map(lambda arr: ''.join(arr), desc_arr)
+    processed_desc_str = '\n'.join(desc_str_arr)
+    [line_width_processed_desc, line_height_processed_desc] = draw.textsize(processed_desc_str, font=font_desc)
+    print('[line_width_processed_desc, line_height_processed_desc]', [line_width_processed_desc, line_height_processed_desc])
+    draw.multiline_text((30, 640), processed_desc_str, font=font_desc, fill=fill_color_desc, align="left", spacing=desc_spacing)
+
+    # 计算desc区域高度: 不含上方margin 含下方margin
+    desc_height = line_height_processed_desc * int(lines_desc) - desc_spacing - (int(lines_desc) * 28);
+    print('desc_height: %s\n' % desc_height)
+
+    # 子菜绘制
+    ## 主子菜
+    c_top = int(650 + desc_height);
+    c0_top = int(c_top + 326)
+    c1_top = int(c_top + c_radius * 2 + 30)
+    c2_top = c0_top
+    if 'c' in mat_config:
+        draw_circle(c_radius * 2, mat_config['c']['file'], to_img, (int(full_width / 2 - c_radius), c_top), outline_color = c_and_children_border_color, outline_width = 4)
+
+    ## 子菜0-2 0_left 1_mid 2_right
+    if 'c0' in mat_config:
+        draw_circle(c_children_radius * 2, mat_config['c0']['file'], to_img, (42, c0_top), outline_color = c_and_children_border_color, outline_width = 2)
+
+    if 'c1' in mat_config:
+        draw_circle(c_children_radius * 2, mat_config['c1']['file'], to_img, (int(full_width / 2 - c_children_radius), c1_top), outline_color = c_and_children_border_color, outline_width = 2)
+    if 'c2' in mat_config:
+        draw_circle(c_children_radius * 2, mat_config['c2']['file'], to_img, (int(full_width - c_children_radius * 2 - 30), c2_top), outline_color = c_and_children_border_color, outline_width = 2)
+
+    # 底部品名 配料表
+    foot_desc_1_title = '品名'
+    foot_desc_1_text = menu_name
+    foot_desc_2_title = '配料表'
+    foot_desc_2_text  = ' '.join(map(lambda c_child: c_child['name'], sorted(mat_config['c_children_name_arr'], key=lambda item: item['sort'])))
+
+    foot_desc_line_1_top = c_top + c_radius * 2 + 30 +  c_children_radius * 2 + 40
+    for i in range(3):
+        y = foot_desc_line_1_top + 38 * i
+        draw.line((28, y, full_width - 28 * 2, y), '#f4efea', 1)
 
 
-        toImg.show()
-        toImg.save(path.join(imageDir, '../output/' + menuName) + '.png')
+    font_foot_desc = ImageFont.truetype('SourceHanSerifCN-Bold', 22)
+    text_color_desc_title = '#808080'
+    draw.text((28, foot_desc_line_1_top + 2), foot_desc_1_title, font=font_foot_desc, fill=text_color_desc_title, align="center")
+    draw.text((150, foot_desc_line_1_top + 2), foot_desc_1_text, font=font_foot_desc, fill=text_color_normal, align="center")
+    draw.text((28, foot_desc_line_1_top + 2 + 38), foot_desc_2_title, font=font_foot_desc, fill=text_color_desc_title, align="center")
+    draw.text((150, foot_desc_line_1_top + 2 + 38), foot_desc_2_text, font=font_foot_desc, fill=text_color_normal, align="center")
 
 
 
-        # fromImg.
-        # toImg.paste(fromImg, ())
-
-    # todo sr realdata outfile
     # toImg.show()
-    # toImg.save('./output/菜品_xx.png')
+    to_img.save(path.join(image_dir, '../output/' + menu_name) + '.png')
 
+'''
 def circle_new():
-    ima = Image.open("images/菜名_xx/main.jpg").convert("RGBA")
+    ima = Image.open("images/孜香大排/c_大排.png").convert("RGBA")
 
-    size = ima.size
 
     r2 = min(size[0], size[1])
 
@@ -114,19 +197,41 @@ def circle_new():
     ima.putalpha(alpha)
 
     ima.save('test_circle.png')
+'''
 
-def readMaterialsAndDraw(imageDir):
-    for menuName in os.listdir(imageDir):
-        fullMenuDir = path.join(imageDir, menuName)
-        if path.isdir(fullMenuDir):
-            genMenu(imageDir, menuName)
+# 改图片颜色改outline_color即可
+def draw_circle(r, path, to_img, to_xy, outline_color = None, outline_width = 0):
+    (x, y) = (0, 0)
+    ima = Image.open(path).convert("RGBA")
+
+    ima = ima.resize((r, r), Image.ANTIALIAS)
+
+    circle = Image.new('L', (r, r), 0)
+
+    draw = ImageDraw.Draw(circle)
+
+    draw.ellipse((x, y, r, r), fill=255, outline=outline_color, width=outline_width)
+
+    alpha = Image.new('L', (r, r), 255)
+
+    alpha.paste(circle, (0, 0))
+    #
+    ima.putalpha(alpha)
+    to_img.paste(ima, to_xy)
+
+def read_materials_and_draw_menus(image_dir):
+    for menuName in os.listdir(image_dir):
+        full_menu_dir = path.join(image_dir, menuName)
+        if path.isdir(full_menu_dir):
+            gen_menu(image_dir, menuName)
 
 def gen():
-    readMaterialsAndDraw(path.join(curDir, 'images'))
+    read_materials_and_draw_menus(path.join(curDir, 'images'))
 
 if __name__ == '__main__':
-    # gen()
-    circle_new()
+    gen()
+    # draw_circle((0, 0),  255, "images/孜香大排/c_大排.png",)
+    # circle_new()
 
 
 
