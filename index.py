@@ -13,7 +13,7 @@ config = {
         "desc_spacing": 6,
         "c_radius": 196,
         "c_children_radius": 55,
-        'c_and_children_border_color': 'green',
+        'c_and_children_border_color': 'purple',
     }
 }
 
@@ -98,6 +98,9 @@ def gen_menu(image_dir, menu_name):
     #     [name, ext] = path.splitext(mat_file)
     #     print(name, ext)
 
+    # 绘制背景
+    draw.rectangle((0, 0, full_width, full_height), 'white')
+
     # 标题绘制, top_0-160_mid
     font_title = ImageFont.truetype('SourceHanSerifCN-Bold', 48) # 不写.ttf后缀会自动搜索非.ttf字体
     text_color_normal = '#333'
@@ -124,20 +127,32 @@ def gen_menu(image_dir, menu_name):
     desc_str_arr = map(lambda arr: ''.join(arr), desc_arr)
     processed_desc_str = '\n'.join(desc_str_arr)
     [line_width_processed_desc, line_height_processed_desc] = draw.textsize(processed_desc_str, font=font_desc)
+    line_height_processed_desc = 68
     print('[line_width_processed_desc, line_height_processed_desc]', [line_width_processed_desc, line_height_processed_desc])
     draw.multiline_text((30, 640), processed_desc_str, font=font_desc, fill=fill_color_desc, align="left", spacing=desc_spacing)
 
-    # 计算desc区域高度: 不含上方margin 含下方margin
-    desc_height = line_height_processed_desc * int(lines_desc) - desc_spacing - (int(lines_desc) * 28);
-    print('desc_height: %s\n' % desc_height)
-
     # 子菜绘制
     ## 主子菜
-    c_top = int(650 + desc_height);
+    c_top = int(650 + line_height_processed_desc * int(lines_desc) - desc_spacing);
+    int_lines_desc = math.ceil(lines_desc)
+    print('int_lines_desc %i' % int_lines_desc)
+    if int_lines_desc == 1:
+        c_top += 70;
+    elif int_lines_desc == 2:
+        c_top += 40;
+    elif int_lines_desc == 3:
+        pass
+    elif int_lines_desc == 4:
+        c_top -= 20;
+        pass
+
     c0_top = int(c_top + 326)
     c1_top = int(c_top + c_radius * 2 + 30)
     c2_top = c0_top
+
     if 'c' in mat_config:
+
+        # drawCircleAvatar(avatar, to_img)
         draw_circle(c_radius * 2, mat_config['c']['file'], to_img, (int(full_width / 2 - c_radius), c_top), outline_color = c_and_children_border_color, outline_width = 4)
 
     ## 子菜0-2 0_left 1_mid 2_right
@@ -148,6 +163,9 @@ def gen_menu(image_dir, menu_name):
         draw_circle(c_children_radius * 2, mat_config['c1']['file'], to_img, (int(full_width / 2 - c_children_radius), c1_top), outline_color = c_and_children_border_color, outline_width = 2)
     if 'c2' in mat_config:
         draw_circle(c_children_radius * 2, mat_config['c2']['file'], to_img, (int(full_width - c_children_radius * 2 - 30), c2_top), outline_color = c_and_children_border_color, outline_width = 2)
+
+    # circle_new(to_img, (int(full_width / 2 - c_radius), c_top))
+    avatar = Image.open('images/孜香大排/main.jpg')
 
     # 底部品名 配料表
     foot_desc_1_title = '品名'
@@ -174,9 +192,32 @@ def gen_menu(image_dir, menu_name):
     to_img.save(path.join(image_dir, '../output/' + menu_name) + '.png')
 
 '''
-def circle_new():
+# 画圆的可用_能理解版本
+def draw_circle_2(w, path, to_img, to_xy, outline_color = None, outline_width = 0):
+    im = Image.open(path).convert("RGBA")
+    im.resize((w, w), Image.ANTIALIAS)
+    # im.resize((100, 100), Image.ANTIALIAS)
+    print('xxx_pre', im.size, (w, w))
+    #遮罩对象
+    mask = Image.new('L', (w,w), 0)
+    draw = ImageDraw.Draw(mask)
+    # mask内圆
+    w_minus_outline_width = w - outline_width
+    draw.ellipse((outline_width, outline_width, w_minus_outline_width, w_minus_outline_width), fill=255)
+    # mask外环
+    draw.ellipse((0, 0) + (w, w), fill=None, outline=outline_color, width=outline_width)
+    mask = mask.resize(im.size, Image.ANTIALIAS)
+    print('xxx', im.size, (w, w), to_xy)
+    im.putalpha(mask)
+    to_img.paste(im, to_xy, im)
+    # im.save('test-11.png')
+'''
+
+'''
+def circle_new(to_img, to_xy):
     ima = Image.open("images/孜香大排/c_大排.png").convert("RGBA")
 
+    size = ima.size
 
     r2 = min(size[0], size[1])
 
@@ -187,6 +228,7 @@ def circle_new():
     circle = Image.new('L', (r2, r2), 0)
 
     draw = ImageDraw.Draw(circle)
+    # draw.rectangle((0, 0, r2, r2), 'white')
 
     draw.ellipse((0, 0, r2, r2), fill=255)
 
@@ -195,29 +237,34 @@ def circle_new():
     alpha.paste(circle, (0, 0))
 
     ima.putalpha(alpha)
+    to_img.putalpha(alpha)
 
+    to_img.paste(ima, to_xy)
     ima.save('test_circle.png')
 '''
 
 # 改图片颜色改outline_color即可
-def draw_circle(r, path, to_img, to_xy, outline_color = None, outline_width = 0):
+def draw_circle(w, path, to_img, to_xy, outline_color = None, outline_width = 0):
     (x, y) = (0, 0)
     ima = Image.open(path).convert("RGBA")
 
-    ima = ima.resize((r, r), Image.ANTIALIAS)
+    ima = ima.resize((w, w), Image.ANTIALIAS)
 
-    circle = Image.new('L', (r, r), 0)
+    circle = Image.new('L', (w, w), 0)
 
     draw = ImageDraw.Draw(circle)
 
-    draw.ellipse((x, y, r, r), fill=255, outline=outline_color, width=outline_width)
+    w_minus_outline_width = w - outline_width
+    draw.ellipse((outline_width, outline_width, w_minus_outline_width, w_minus_outline_width), fill=255)
+    # mask外环
+    draw.ellipse((0, 0) + (w, w), fill=None, outline=outline_color, width=outline_width)
 
-    alpha = Image.new('L', (r, r), 255)
+    alpha = Image.new('L', (w, w), 255)
 
     alpha.paste(circle, (0, 0))
     #
     ima.putalpha(alpha)
-    to_img.paste(ima, to_xy)
+    to_img.paste(ima, to_xy, ima)
 
 def read_materials_and_draw_menus(image_dir):
     for menuName in os.listdir(image_dir):
@@ -228,8 +275,53 @@ def read_materials_and_draw_menus(image_dir):
 def gen():
     read_materials_and_draw_menus(path.join(curDir, 'images'))
 
+'''
+def circle2(path, #to_img, to_xy, outline_color = None, outline_width = 0
+            ):
+    ima = Image.open(path).convert("RGBA")
+
+    size = ima.size
+
+    # 因为是要圆形，所以需要正方形的图片
+
+    r2 = min(size[0], size[1])
+
+    if size[0] != size[1]:
+
+        ima = ima.resize((r2, r2), Image.ANTIALIAS)
+
+    imb = Image.new('RGBA', (r2, r2),(255,255,255,0))
+    draw = ImageDraw.Draw(imb)
+    draw.rectangle((0, 0, r2, r2), 'white')
+
+    pima = ima.load()
+
+    pimb = imb.load()
+
+    r = float(r2/2) #圆心横坐标
+
+    for i in range(r2):
+
+        for j in range(r2):
+
+            lx = abs(i-r+0.5) #到圆心距离的横坐标
+
+            ly = abs(j-r+0.5)#到圆心距离的纵坐标
+
+            l  = pow(lx,2) + pow(ly,2)
+
+            if l <= pow(r, 2):
+
+                pimb[i,j] = pima[i,j]
+    imb.resize((r2, r2), Image.ANTIALIAS)
+
+    imb.save("test_circle.png")
+'''
+
 if __name__ == '__main__':
     gen()
+    # circle_corder_image();
+    # circle2("images/孜香大排/c1_胡萝卜.png")
     # draw_circle((0, 0),  255, "images/孜香大排/c_大排.png",)
     # circle_new()
 
