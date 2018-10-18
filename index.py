@@ -235,7 +235,7 @@ def draw_circle(w, path, to_img, to_xy, border_path, outline_width = 0):
     ima.putalpha(alpha)
     to_img.paste(ima, to_xy, ima)
     to_img.paste(mask_outline, to_xy, mask_outline)
-    ima.save('test_circle.png')
+    # ima.save('test_circle.png')
 
 def read_materials_and_draw_menus(image_dir):
     for menuName in os.listdir(image_dir):
