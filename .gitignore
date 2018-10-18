@@ -1,2 +1,8 @@
 .idea/
 output/
+images/
+images_demo/
+success.json
+fail.json
+retry-success.json
+retry-fail.json

@@ -52,9 +52,8 @@ def partition(arr, n):
 # 生成1个菜
 def gen_menu(image_dir, menu_name):
     full_menu_dir = path.join(image_dir, menu_name)
-    print('fullMenuDir', full_menu_dir)
-    to_img = Image.new('RGBA', (full_width, full_height))
-    draw = ImageDraw.Draw(to_img)
+    # print('fullMenuDir', full_menu_dir)
+
 
     # 遍历文件夹生成菜材料数据
     mat_config = {'c_children_name_arr': []}
@@ -83,20 +82,39 @@ def gen_menu(image_dir, menu_name):
             mat_config['main'] = {"file": abs_mat_file}
         elif name == 'desc':
             mat_config['desc'] = {"file": abs_mat_file}
-        elif str.startswith(name, 'c0_'):
+        elif str.startswith(name, 'c0'):
             mat_config['c0'] = {'file': abs_mat_file}
             mat_config['c_children_name_arr'].append({'name': re.sub('^c0', '', name), "sort": 0})
-        elif str.startswith(name, 'c1_'):
+        elif str.startswith(name, 'c1'):
             mat_config['c1'] = {'file': abs_mat_file}
             mat_config['c_children_name_arr'].append({'name': re.sub('^c1', '', name), "sort": 1})
-        elif str.startswith(name, 'c2_'):
+        elif str.startswith(name, 'c2'):
             mat_config['c2'] = {'file': abs_mat_file}
             mat_config['c_children_name_arr'].append({'name': re.sub('^c2', '', name), "sort": 2})
-        elif str.startswith(name, 'c_'):
+        elif str.startswith(name, 'c'):
             mat_config['c'] = {"file": abs_mat_file}
             mat_config['c_children_name_arr'].append({'name': re.sub('^c', '', name), "sort": -1})
 
-    print('%s menu_mat_config %s' %(menu_name, mat_config))
+
+    final_full_height = full_height
+    has_c0 = True
+    has_c2 = True
+    # 没有c0子菜时, 总高度 - (2 * c_children_radius + 30)
+    if ('c0' not in mat_config) and ('c1' not in mat_config):
+        has_c0 = False
+        has_c2 = False
+        final_full_height -= (2 * c_children_radius + 30)
+    # 没有c2子菜时, 总高度 - 2 * c_child_radius
+    elif 'c2' not in mat_config:
+        has_c2 = False
+        final_full_height -= (2 * c_children_radius)
+
+    to_img = Image.new('RGBA', (full_width, final_full_height))
+    draw = ImageDraw.Draw(to_img)
+
+    print('正在生成%s' % (menu_name))
+    # print('%s menu_mat_config %s' %(menu_name, mat_config))
+
 
 
     # for mat_file in os.listdir(full_menu_dir):
@@ -118,8 +136,9 @@ def gen_menu(image_dir, menu_name):
 
     # 主菜绘制, top_160
     main_img = Image.open(mat_config['main']['file'])
-    main_img.resize((full_width, 450), Image.ANTIALIAS)
-    to_img.paste(main_img, (0, 160))
+    adjusted_main_img = main_img.resize((full_width, 450), Image.BILINEAR) # resize生成副本, 不改变原图片
+    # print('[debugger] main_img size', adjusted_main_img.size)
+    to_img.paste(adjusted_main_img, (0, 160))
 
     # 描述文案绘制, top_650
     fill_color_desc = '#333'
@@ -129,19 +148,31 @@ def gen_menu(image_dir, menu_name):
     # 分行
     [line_width_desc, line_height_desc] = draw.textsize(desc, font=font_normal, spacing=desc_spacing)
     lines_desc = line_width_desc / (full_width - desc_padding_left * 2 + 6) # 最后的减为调整: 未能领悟pillow是如何计算行宽
+
     desc_arr = partition(desc, int(len(desc) / lines_desc))
+    # 最后一个标点为， 。时， 放在上一排
+    lens_desc_arr = len(desc_arr)
+    last_desc_arr_item = desc_arr[lens_desc_arr - 1]
+    last_second_desc_arr_item = desc_arr[lens_desc_arr - 2]
+
+    lens_last_desc_arr_item = len(last_desc_arr_item)
+    last_item = last_desc_arr_item[lens_last_desc_arr_item - 1]
+    if (last_item == '，' or last_item  == '。') and (lens_last_desc_arr_item == 1):
+        last_second_desc_arr_item.append(last_item)
+        del desc_arr[lens_desc_arr - 1]
+
     final_lines_desc = len(desc_arr)
     desc_str_arr = map(lambda arr: ''.join(arr), desc_arr)
     processed_desc_str = '\n'.join(desc_str_arr)
     [line_width_processed_desc, line_height_processed_desc] = draw.textsize(processed_desc_str, font=font_normal)
     line_height_processed_desc = 68
-    print('[line_width_processed_desc, line_height_processed_desc]', [line_width_processed_desc, line_height_processed_desc])
+    # print('[line_width_processed_desc, line_height_processed_desc]', [line_width_processed_desc, line_height_processed_desc])
     draw.multiline_text((28, 650), processed_desc_str, font=font_normal, fill=fill_color_desc, align="left", spacing=desc_spacing)
 
     # 子菜绘制
     ## 主子菜
     c_top = int(650 + line_height_processed_desc * int(lines_desc) - desc_spacing + 10);
-    print('final_lines_desc %i' % final_lines_desc)
+    # print('final_lines_desc %i' % final_lines_desc)
     if final_lines_desc == 1:
         c_top += 70;
     elif final_lines_desc == 2:
@@ -179,7 +210,7 @@ def gen_menu(image_dir, menu_name):
     foot_desc_2_title = '配料表'
     foot_desc_2_text  = ' '.join(map(lambda c_child: c_child['name'], sorted(mat_config['c_children_name_arr'], key=lambda item: item['sort'])))
 
-    foot_desc_line_1_top = c_top + c_radius * 2 + 30 +  c_children_radius * 2 + 40
+    foot_desc_line_1_top = c_top + c_radius * 2 +  (30 if has_c0 else 0) + ((c_children_radius * 2) if has_c2 else 0) + 60
     for i in range(3):
         y = foot_desc_line_1_top + 38 * i
         draw.line((28, y, full_width - 28 * 2, y), '#f4efea', 1)
@@ -248,7 +279,7 @@ def ensure_output_dir():
     else:
         os.mkdir(output_name)
 
-def read_materials_and_draw_menus(image_dir, menu_names = None):
+def read_materials_and_draw_menus(image_dir, menu_names = None, retry_fail = False):
     menu_name_arr = []
     if menu_names != None and isinstance(menu_names, list):
         menu_name_arr = menu_names
@@ -266,12 +297,16 @@ def read_materials_and_draw_menus(image_dir, menu_names = None):
                 fail_list.append(menu_name)
             finally:
                 # encoding='utf-8' + ensure_ascii=False: 以解决中文编码问题
-                with open('./success.json', 'w', encoding='utf-8') as success_f:
+                success_file = './retry-success.json' if retry_fail else './success.json'
+                with open(success_file, 'w', encoding='utf-8') as success_f:
                     json.dump(success_list, success_f, ensure_ascii=False)
 
                 if len(fail_list) > 0:
-                    print('部分菜生成失败, 失败列表参见fail.json')
-                    with open('./fail.json', 'w', encoding='utf-8') as fail_f:
+                    fail_msg = 'retry-fail部分菜生成失败, 参见retry-fail.json' if retry_fail  else '部分菜生成失败, 参见fail.json'
+                    print(fail_msg)
+
+                    fail_file = './retry-file.json' if retry_fail else './fail.json'
+                    with open(fail_file, 'w', encoding='utf-8') as fail_f:
                         json.dump(fail_list, fail_f, ensure_ascii=False)
 
 
@@ -279,15 +314,15 @@ def read_materials_and_draw_menus(image_dir, menu_names = None):
 
 
 
-def gen(menu_names = None):
+def gen(menu_names = None, retry_fail = False):
     ensure_output_dir()
-    read_materials_and_draw_menus(path.join(curDir, 'images'), menu_names)
+    read_materials_and_draw_menus(path.join(curDir, 'images'), menu_names, retry_fail = retry_fail)
 
 if __name__ == '__main__':
     if len(sys.argv) == 2 and sys.argv[1] == '--retry-fail':
         with open('./fail.json', 'r', encoding='utf-8') as fail_f:
             menu_names = json.load(fail_f)
-            gen(menu_names)
+            gen(menu_names, retry_fail = True)
     else:
         gen()
 
