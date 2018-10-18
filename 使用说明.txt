@@ -1,0 +1,23 @@
+图片自动合成
+
+
+使用环境兼容性: 目前仅在Mac测试通过, 其他环境会有类似文件路径的兼容性问题
+
+一.使用说明
+(以下文档若不特殊说明为Mac环境下文档,且假设当前目录在'工具根目录', 即本使用说明所在文件夹下)
+2.环境安装
+brew install python3
+pip3 install pillow
+3.素材命名说明
+images/文件夹下, 每个菜为1个目录, 以菜名命名,
+菜名文件夹内: (main 主菜图, desc.txt 描述文案文件, cXX 主子菜文件-XX为主子菜名,
+c0XX c1XX c2XX为辅子菜文件-XX为辅子菜名,  0 1 2表示辅子菜位置 0右边 1左边 2下方中间)
+demo参见images_demo/文件夹
+4.输出
+output/目录下, 每个菜1张png格式图片
+
+4.使用命令
+(1) 命令1: 将images/下菜素材全量合成图片, 成功失败列表分别记录在success.json fail.json
+python3 index.py
+(2) 命令2: 之前合成失败的图片再次合成(先解决发现问题), 重试列表分别记录在retry-success.json retry-fail.json
+py3 index.py --retry-fail
