@@ -6,6 +6,8 @@
 一.使用说明
 (以下文档若不特殊说明为Mac环境下文档,且假设当前目录在'工具根目录', 即本使用说明所在文件夹下)
 2.环境安装
+命令行中 cd 到本目录
+/usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
 brew install python3
 pip3 install pillow
 3.素材命名说明
