@@ -4,6 +4,7 @@ import os
 from os import path
 import re
 import math
+import json
 
 config = {
     "style": {
@@ -84,16 +85,16 @@ def gen_menu(image_dir, menu_name):
             mat_config['desc'] = {"file": abs_mat_file}
         elif str.startswith(name, 'c0_'):
             mat_config['c0'] = {'file': abs_mat_file}
-            mat_config['c_children_name_arr'].append({'name': re.sub('^c0_', '', name), "sort": 0})
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c0', '', name), "sort": 0})
         elif str.startswith(name, 'c1_'):
             mat_config['c1'] = {'file': abs_mat_file}
-            mat_config['c_children_name_arr'].append({'name': re.sub('^c1_', '', name), "sort": 1})
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c1', '', name), "sort": 1})
         elif str.startswith(name, 'c2_'):
             mat_config['c2'] = {'file': abs_mat_file}
-            mat_config['c_children_name_arr'].append({'name': re.sub('^c2_', '', name), "sort": 2})
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c2', '', name), "sort": 2})
         elif str.startswith(name, 'c_'):
             mat_config['c'] = {"file": abs_mat_file}
-            mat_config['c_children_name_arr'].append({'name': re.sub('^c_', '', name), "sort": -1})
+            mat_config['c_children_name_arr'].append({'name': re.sub('^c', '', name), "sort": -1})
 
     print('%s menu_mat_config %s' %(menu_name, mat_config))
 
@@ -237,17 +238,58 @@ def draw_circle(w, path, to_img, to_xy, border_path, outline_width = 0):
     to_img.paste(mask_outline, to_xy, mask_outline)
     # ima.save('test_circle.png')
 
-def read_materials_and_draw_menus(image_dir):
-    for menuName in os.listdir(image_dir):
-        full_menu_dir = path.join(image_dir, menuName)
-        if path.isdir(full_menu_dir):
-            gen_menu(image_dir, menuName)
+success_list = []
+fail_list = []
 
-def gen():
-    read_materials_and_draw_menus(path.join(curDir, 'images'))
+def ensure_output_dir():
+    output_name = 'output'
+    if path.exists(output_name) and path.isdir(output_name):
+        pass
+    else:
+        os.mkdir(output_name)
+
+def read_materials_and_draw_menus(image_dir, menu_names = None):
+    menu_name_arr = []
+    if menu_names != None and isinstance(menu_names, list):
+        menu_name_arr = menu_names
+    else:
+        menu_name_arr = os.listdir(image_dir)
+
+    for menu_name in menu_name_arr:
+        full_menu_dir = path.join(image_dir, menu_name)
+        if path.isdir(full_menu_dir):
+            try:
+                gen_menu(image_dir, menu_name)
+                success_list.append(menu_name)
+            except Exception as e:
+                print('发生错误: ', e)
+                fail_list.append(menu_name)
+            finally:
+                # encoding='utf-8' + ensure_ascii=False: 以解决中文编码问题
+                with open('./success.json', 'w', encoding='utf-8') as success_f:
+                    json.dump(success_list, success_f, ensure_ascii=False)
+
+                if len(fail_list) > 0:
+                    print('部分菜生成失败, 失败列表参见fail.json')
+                    with open('./fail.json', 'w', encoding='utf-8') as fail_f:
+                        json.dump(fail_list, fail_f, ensure_ascii=False)
+
+
+
+
+
+
+def gen(menu_names = None):
+    ensure_output_dir()
+    read_materials_and_draw_menus(path.join(curDir, 'images'), menu_names)
 
 if __name__ == '__main__':
-    gen()
+    if len(sys.argv) == 2 and sys.argv[1] == '--retry-fail':
+        with open('./fail.json', 'r', encoding='utf-8') as fail_f:
+            menu_names = json.load(fail_f)
+            gen(menu_names)
+    else:
+        gen()
 
 '''
 def circle2(path, #to_img, to_xy, outline_color = None, outline_width = 0
