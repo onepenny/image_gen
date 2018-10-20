@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 import sys
 import os
 from os import path
@@ -137,6 +137,10 @@ def gen_menu(image_dir, menu_name):
     # 主菜绘制, top_160
     main_img = Image.open(mat_config['main']['file'])
     adjusted_main_img = main_img.resize((full_width, 450), Image.BILINEAR) # resize生成副本, 不改变原图片
+    # 不变形的版本_猜测: 1.先裁剪 后变形  2.ImageOps.fit
+    # adjusted_main_img = ImageOps.fit(main_img, (full_width, 450), Image.NEAREST, bleed=0.0, centering=(0.5, 0.5))
+
+    # adjusted_main_img = main_img.resize((full_width, 450), Image.BILINEAR) # resize生成副本, 不改变原图片
     # print('[debugger] main_img size', adjusted_main_img.size)
     to_img.paste(adjusted_main_img, (0, 160))
 
@@ -160,6 +164,7 @@ def gen_menu(image_dir, menu_name):
     if (last_item == '，' or last_item  == '。') and (lens_last_desc_arr_item == 1):
         last_second_desc_arr_item.append(last_item)
         del desc_arr[lens_desc_arr - 1]
+        lines_desc -= 1
 
     final_lines_desc = len(desc_arr)
     desc_str_arr = map(lambda arr: ''.join(arr), desc_arr)
