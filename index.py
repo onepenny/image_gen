@@ -244,7 +244,8 @@ def draw_circle(w, path, to_img, to_xy, border_path, outline_width = 0):
     (x, y) = (0, 0)
     ima = Image.open(path).convert("RGBA")
 
-    ima = ima.resize((w, w), Image.ANTIALIAS)
+    # ima = ima.resize((w, w), Image.ANTIALIAS)
+    ima = ImageOps.fit(ima, (w, w), Image.ANTIALIAS, bleed=0.0, centering=(0.5, 0.5))
 
     circle = Image.new('L', (w, w), 0)
 
