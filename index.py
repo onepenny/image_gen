@@ -164,9 +164,10 @@ def gen_menu(image_dir, menu_name):
     if (last_item == '，' or last_item  == '。') and (lens_last_desc_arr_item == 1):
         last_second_desc_arr_item.append(last_item)
         del desc_arr[lens_desc_arr - 1]
-        lines_desc -= 1
 
+    # 下方根据desc行数计算c菜高度都应使用此字段
     final_lines_desc = len(desc_arr)
+
     desc_str_arr = map(lambda arr: ''.join(arr), desc_arr)
     processed_desc_str = '\n'.join(desc_str_arr)
     [line_width_processed_desc, line_height_processed_desc] = draw.textsize(processed_desc_str, font=font_normal)
@@ -176,7 +177,7 @@ def gen_menu(image_dir, menu_name):
 
     # 子菜绘制
     ## 主子菜
-    c_top = int(650 + line_height_processed_desc * int(lines_desc) - desc_spacing + 10);
+    c_top = int(650 + line_height_processed_desc * int(final_lines_desc - 1) - desc_spacing + 10);
     # print('final_lines_desc %i' % final_lines_desc)
     if final_lines_desc == 1:
         c_top += 70;
